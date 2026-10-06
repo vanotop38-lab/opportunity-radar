@@ -1,5 +1,4 @@
-
-  const DEMO = [
+const DEMO = [
   ['Maintenance multi-sites des bâtiments administratifs','Métropole de Lyon','Auvergne-Rhône-Alpes',187000,'2026-10-20','Maintenance, entretien'],
   ['Prestations de nettoyage de locaux','Ville de Grenoble','Auvergne-Rhône-Alpes',96000,'2026-10-15','Nettoyage, entretien'],
   ['Entretien des espaces publics','Commune de Valence','Auvergne-Rhône-Alpes',240000,'2026-10-28','Entretien, services'],
@@ -25,6 +24,64 @@
   score:0
 }));
 
+const DEPT_REGIONS = {
+  '01':'Auvergne-Rhône-Alpes','03':'Auvergne-Rhône-Alpes',
+  '07':'Auvergne-Rhône-Alpes','15':'Auvergne-Rhône-Alpes',
+  '26':'Auvergne-Rhône-Alpes','38':'Auvergne-Rhône-Alpes',
+  '42':'Auvergne-Rhône-Alpes','43':'Auvergne-Rhône-Alpes',
+  '63':'Auvergne-Rhône-Alpes','69':'Auvergne-Rhône-Alpes',
+  '73':'Auvergne-Rhône-Alpes','74':'Auvergne-Rhône-Alpes',
+
+  '21':'Bourgogne-Franche-Comté','25':'Bourgogne-Franche-Comté',
+  '39':'Bourgogne-Franche-Comté','58':'Bourgogne-Franche-Comté',
+  '70':'Bourgogne-Franche-Comté','71':'Bourgogne-Franche-Comté',
+  '89':'Bourgogne-Franche-Comté','90':'Bourgogne-Franche-Comté',
+
+  '22':'Bretagne','29':'Bretagne','35':'Bretagne','56':'Bretagne',
+
+  '18':'Centre-Val de Loire','28':'Centre-Val de Loire',
+  '36':'Centre-Val de Loire','37':'Centre-Val de Loire',
+  '41':'Centre-Val de Loire','45':'Centre-Val de Loire',
+
+  '2A':'Corse','2B':'Corse','20':'Corse',
+
+  '08':'Grand Est','10':'Grand Est','51':'Grand Est',
+  '52':'Grand Est','54':'Grand Est','55':'Grand Est',
+  '57':'Grand Est','67':'Grand Est','68':'Grand Est','88':'Grand Est',
+
+  '02':'Hauts-de-France','59':'Hauts-de-France',
+  '60':'Hauts-de-France','62':'Hauts-de-France','80':'Hauts-de-France',
+
+  '16':'Nouvelle-Aquitaine','17':'Nouvelle-Aquitaine',
+  '19':'Nouvelle-Aquitaine','23':'Nouvelle-Aquitaine',
+  '24':'Nouvelle-Aquitaine','33':'Nouvelle-Aquitaine',
+  '40':'Nouvelle-Aquitaine','47':'Nouvelle-Aquitaine',
+  '64':'Nouvelle-Aquitaine','79':'Nouvelle-Aquitaine',
+  '86':'Nouvelle-Aquitaine','87':'Nouvelle-Aquitaine',
+
+  '14':'Normandie','27':'Normandie','50':'Normandie',
+  '61':'Normandie','76':'Normandie',
+
+  '75':'Île-de-France','77':'Île-de-France','78':'Île-de-France',
+  '91':'Île-de-France','92':'Île-de-France','93':'Île-de-France',
+  '94':'Île-de-France','95':'Île-de-France',
+
+  '44':'Pays de la Loire','49':'Pays de la Loire',
+  '53':'Pays de la Loire','72':'Pays de la Loire','85':'Pays de la Loire',
+
+  '09':'Occitanie','11':'Occitanie','12':'Occitanie',
+  '30':'Occitanie','31':'Occitanie','32':'Occitanie',
+  '34':'Occitanie','46':'Occitanie','48':'Occitanie',
+  '65':'Occitanie','66':'Occitanie','81':'Occitanie','82':'Occitanie',
+
+  '04':'Provence-Alpes-Côte d’Azur','05':'Provence-Alpes-Côte d’Azur',
+  '06':'Provence-Alpes-Côte d’Azur','13':'Provence-Alpes-Côte d’Azur',
+  '83':'Provence-Alpes-Côte d’Azur','84':'Provence-Alpes-Côte d’Azur',
+
+  '971':'Guadeloupe','972':'Martinique','973':'Guyane',
+  '974':'La Réunion','976':'Mayotte'
+};
+
 let profile = JSON.parse(
   localStorage.getItem('or-profile') || 'null'
 ) || {
@@ -40,7 +97,6 @@ let saved = JSON.parse(
 );
 
 let all = [];
-
 const API_URL = '/api/boamp';
 let dataStatus = 'unknown';
 
@@ -59,60 +115,56 @@ function firstNumber(value){
   return m ? Number(m[0]) : null;
 }
 
-function deepFindAmounts(value,out=[]){
-  if(value == null) return out;
-
-  if(Array.isArray(value)){
-    for(const v of value){
-      deepFindAmounts(v,out);
-    }
-    return out;
-  }
-
-  if(typeof value !== 'object') return out;
-
-  for(const [k,v] of Object.entries(value)){
-    const key = k.toLowerCase();
-
-    if(
-      /amount|montant|totalamount|payableamount|estimatedvalue|valeur/.test(key)
-    ){
-      if(typeof v === 'number'){
-        out.push(v);
-      }else if(typeof v === 'string'){
-        const n = firstNumber(v);
-        if(n != null) out.push(n);
-      }else if(v && typeof v === 'object'){
-        const n = firstNumber(
-          v['#text'] ?? v.value ?? v.amount ?? v.montant
-        );
-        if(n != null) out.push(n);
-      }
-    }
-
-    deepFindAmounts(v,out);
-  }
-
-  return out;
-}
-
 function extractAmount(r){
-  for(const key of [
+  const keys = [
     'montant',
     'montant_marche',
     'montant_total',
     'montant_maximum',
     'valeur_estimee',
     'estimated_value'
-  ]){
-    const n = firstNumber(r[key]);
+  ];
 
-    if(n != null && n > 0){
-      return n;
-    }
+  for(const key of keys){
+    const n = firstNumber(r[key]);
+    if(n != null && n > 0) return n;
   }
 
   return null;
+}
+
+function getDepartmentCode(value){
+  const values = Array.isArray(value)
+    ? value
+    : [value];
+
+  for(const item of values){
+    const code = String(item || '').trim();
+
+    if(DEPT_REGIONS[code]){
+      return code;
+    }
+
+    const match = code.match(/\b(2A|2B|\d{2,3})\b/);
+
+    if(match && DEPT_REGIONS[match[1]]){
+      return match[1];
+    }
+  }
+
+  return '';
+}
+
+function formatDate(value){
+  if(!value) return 'Non communiquée';
+
+  const d = new Date(value);
+
+  if(Number.isNaN(d.getTime())){
+    return 'Non communiquée';
+  }
+
+  return d.toLocaleDateString('fr-FR');
 }
 
 function normalizeRecord(r){
@@ -124,31 +176,44 @@ function normalizeRecord(r){
     ? r.descripteur_libelle.join(', ')
     : (r.descripteur_libelle || '');
 
-  const deps = Array.isArray(r.code_departement)
-    ? r.code_departement.join(', ')
-    : (r.code_departement || '');
-
-  const departmentCode = String(deps).trim();
+  const departmentCode = getDepartmentCode(
+    r.code_departement
+  );
 
   return {
     id:r.idweb || r.id || crypto.randomUUID(),
+
     title:r.objet || 'Objet non communiqué',
+
     buyer:r.nomacheteur || 'Acheteur non communiqué',
-    region:DEPT_REGIONS[departmentCode] || 'France',
+
+    region:
+      DEPT_REGIONS[departmentCode] ||
+      'France',
+
     department:departmentCode,
+
     amount:extractAmount(r),
+
     deadline:r.datelimitereponse || null,
+
     published:r.dateparution || null,
+
     tags:
       labels ||
       codes ||
       r.type_marche_facette ||
       r.type_marche ||
       '',
+
     source:'BOAMP',
+
     url:r.url_avis || '',
+
     score:0,
+
     cpv:codes,
+
     raw:r
   };
 }
@@ -159,6 +224,12 @@ async function fetchLive(){
     window.location.origin
   );
 
+  /*
+   * IMPORTANT :
+   * On ne filtre pas BOAMP avec les mots-clés.
+   * On récupère les annonces puis on les score
+   * localement.
+   */
   url.searchParams.set('limit','100');
 
   const response = await fetch(url,{
@@ -168,7 +239,9 @@ async function fetchLive(){
   });
 
   if(!response.ok){
-    throw new Error('BOAMP '+response.status);
+    throw new Error(
+      'BOAMP '+response.status
+    );
   }
 
   const data = await response.json();
@@ -177,146 +250,33 @@ async function fetchLive(){
     throw new Error(data.error);
   }
 
+  if(!Array.isArray(data.records)){
+    throw new Error(
+      'Réponse BOAMP invalide'
+    );
+  }
+
   dataStatus = 'live';
 
   /*
-   * IMPORTANT :
-   * L'API BOAMP renvoie les annonces dans "records".
+   * BOAMP renvoie les annonces dans records.
+   * On conserve également les annonces sans
+   * date limite afin de ne pas perdre de résultats.
    */
-  return (data.records || [])
-    .map(normalizeRecord)
-    .filter(o => o.deadline);
+  return data.records.map(normalizeRecord);
 }
-
-const DEPT_REGIONS = {
-  '01':'Auvergne-Rhône-Alpes',
-  '03':'Auvergne-Rhône-Alpes',
-  '07':'Auvergne-Rhône-Alpes',
-  '15':'Auvergne-Rhône-Alpes',
-  '26':'Auvergne-Rhône-Alpes',
-  '38':'Auvergne-Rhône-Alpes',
-  '42':'Auvergne-Rhône-Alpes',
-  '43':'Auvergne-Rhône-Alpes',
-  '63':'Auvergne-Rhône-Alpes',
-  '69':'Auvergne-Rhône-Alpes',
-  '73':'Auvergne-Rhône-Alpes',
-  '74':'Auvergne-Rhône-Alpes',
-
-  '21':'Bourgogne-Franche-Comté',
-  '25':'Bourgogne-Franche-Comté',
-  '39':'Bourgogne-Franche-Comté',
-  '58':'Bourgogne-Franche-Comté',
-  '70':'Bourgogne-Franche-Comté',
-  '71':'Bourgogne-Franche-Comté',
-  '89':'Bourgogne-Franche-Comté',
-  '90':'Bourgogne-Franche-Comté',
-
-  '22':'Bretagne',
-  '29':'Bretagne',
-  '35':'Bretagne',
-  '56':'Bretagne',
-
-  '18':'Centre-Val de Loire',
-  '28':'Centre-Val de Loire',
-  '36':'Centre-Val de Loire',
-  '37':'Centre-Val de Loire',
-  '41':'Centre-Val de Loire',
-  '45':'Centre-Val de Loire',
-
-  '2A':'Corse',
-  '2B':'Corse',
-  '20':'Corse',
-
-  '08':'Grand Est',
-  '10':'Grand Est',
-  '51':'Grand Est',
-  '52':'Grand Est',
-  '54':'Grand Est',
-  '55':'Grand Est',
-  '57':'Grand Est',
-  '67':'Grand Est',
-  '68':'Grand Est',
-  '88':'Grand Est',
-
-  '02':'Hauts-de-France',
-  '59':'Hauts-de-France',
-  '60':'Hauts-de-France',
-  '62':'Hauts-de-France',
-  '80':'Hauts-de-France',
-
-  '16':'Nouvelle-Aquitaine',
-  '17':'Nouvelle-Aquitaine',
-  '19':'Nouvelle-Aquitaine',
-  '23':'Nouvelle-Aquitaine',
-  '24':'Nouvelle-Aquitaine',
-  '33':'Nouvelle-Aquitaine',
-  '40':'Nouvelle-Aquitaine',
-  '47':'Nouvelle-Aquitaine',
-  '64':'Nouvelle-Aquitaine',
-  '79':'Nouvelle-Aquitaine',
-  '86':'Nouvelle-Aquitaine',
-  '87':'Nouvelle-Aquitaine',
-
-  '14':'Normandie',
-  '27':'Normandie',
-  '50':'Normandie',
-  '61':'Normandie',
-  '76':'Normandie',
-
-  '75':'Île-de-France',
-  '77':'Île-de-France',
-  '78':'Île-de-France',
-  '91':'Île-de-France',
-  '92':'Île-de-France',
-  '93':'Île-de-France',
-  '94':'Île-de-France',
-  '95':'Île-de-France',
-
-  '44':'Pays de la Loire',
-  '49':'Pays de la Loire',
-  '53':'Pays de la Loire',
-  '72':'Pays de la Loire',
-  '85':'Pays de la Loire',
-
-  '09':'Occitanie',
-  '11':'Occitanie',
-  '12':'Occitanie',
-  '30':'Occitanie',
-  '31':'Occitanie',
-  '32':'Occitanie',
-  '34':'Occitanie',
-  '46':'Occitanie',
-  '48':'Occitanie',
-  '65':'Occitanie',
-  '66':'Occitanie',
-  '81':'Occitanie',
-  '82':'Occitanie',
-
-  '04':'Provence-Alpes-Côte d’Azur',
-  '05':'Provence-Alpes-Côte d’Azur',
-  '06':'Provence-Alpes-Côte d’Azur',
-  '13':'Provence-Alpes-Côte d’Azur',
-  '83':'Provence-Alpes-Côte d’Azur',
-  '84':'Provence-Alpes-Côte d’Azur',
-
-  '971':'Guadeloupe',
-  '972':'Martinique',
-  '973':'Guyane',
-  '974':'La Réunion',
-  '976':'Mayotte'
-};
 
 function score(o){
   let s = 40;
 
   const kw = (
-    profile.keywords +
+    String(profile.keywords || '') +
     ' ' +
-    profile.activity
+    String(profile.activity || '')
   )
     .toLowerCase()
     .split(/[,;\s]+/)
-    .filter(k => k.length > 2);
+    .filter(k=>k.length > 2);
 
   const text = (
     o.title +
@@ -327,8 +287,9 @@ function score(o){
   ).toLowerCase();
 
   const unique = [...new Set(kw)];
+
   const hits = unique.filter(
-    k => text.includes(k)
+    k=>text.includes(k)
   );
 
   s += Math.min(
@@ -336,25 +297,17 @@ function score(o){
     hits.length * 6
   );
 
-  const deps = String(
-    o.department || ''
-  )
-    .split(/[,;\s]+/)
-    .map(x => x.trim().padStart(2,'0'));
+  const wanted =
+    String(profile.region || '')
+      .toLowerCase();
 
-  const wanted = String(
-    profile.region || ''
-  ).toLowerCase();
-
-  const regionMatch = deps.some(
-    d =>
-      (DEPT_REGIONS[d] || '')
-        .toLowerCase() === wanted
-  );
-
-  if(regionMatch){
+  if(
+    wanted &&
+    o.region &&
+    o.region.toLowerCase() === wanted
+  ){
     s += 12;
-  }else if(wanted){
+  }else if(wanted && o.region !== 'France'){
     s -= 5;
   }
 
@@ -376,22 +329,29 @@ function score(o){
   }
 
   if(o.deadline){
-    const days =
-      (new Date(o.deadline) - new Date()) /
-      86400000;
+    const date = new Date(o.deadline);
 
-    if(days < 0){
-      s -= 30;
-    }else if(days <= 3){
-      s -= 8;
-    }else if(days <= 7){
-      s -= 3;
+    if(!Number.isNaN(date.getTime())){
+      const days =
+        (date - new Date()) /
+        86400000;
+
+      if(days < 0){
+        s -= 30;
+      }else if(days <= 3){
+        s -= 8;
+      }else if(days <= 7){
+        s -= 3;
+      }
     }
   }
 
   return Math.max(
     0,
-    Math.min(99,Math.round(s))
+    Math.min(
+      99,
+      Math.round(s)
+    )
   );
 }
 
@@ -408,19 +368,35 @@ function formatEUR(n){
 function card(o){
   return `
     <div class="opp">
-      <div class="score">${o.score}</div>
+
+      <div class="score">
+        ${o.score}
+      </div>
 
       <div>
-        <h3>${o.title}</h3>
+
+        <h3>
+          ${o.title}
+        </h3>
 
         <div class="meta">
-          <span>${o.buyer}</span>
-          <span>${o.region}</span>
-          <span>${formatEUR(o.amount)}</span>
+
           <span>
-            Limite ${new Date(o.deadline)
-              .toLocaleDateString('fr-FR')}
+            ${o.buyer}
           </span>
+
+          <span>
+            ${o.region}
+          </span>
+
+          <span>
+            ${formatEUR(o.amount)}
+          </span>
+
+          <span>
+            Limite ${formatDate(o.deadline)}
+          </span>
+
         </div>
 
         <div
@@ -429,26 +405,35 @@ function card(o){
         >
           ${o.tags} · ${o.source}
         </div>
+
       </div>
 
       <div class="actions">
-        <button onclick="detail('${o.id}')">
+
+        <button
+          onclick="detail('${o.id}')"
+        >
           Voir
         </button>
 
-        <button onclick="toggleSave('${o.id}')">
+        <button
+          onclick="toggleSave('${o.id}')"
+        >
           ${saved.includes(o.id) ? '★' : '☆'}
         </button>
+
       </div>
+
     </div>
   `;
 }
 
 function render(listId,data){
-  document.getElementById(listId).innerHTML =
-    data.length
-      ? data.map(card).join('')
-      : '<div class="empty">Aucune opportunité ne correspond à vos critères.</div>';
+  document.getElementById(
+    listId
+  ).innerHTML = data.length
+    ? data.map(card).join('')
+    : '<div class="empty">Aucune opportunité ne correspond à vos critères.</div>';
 }
 
 async function refresh(){
@@ -456,32 +441,35 @@ async function refresh(){
     document.getElementById('refresh');
 
   if(btn){
-    btn.textContent = 'Actualisation…';
+    btn.textContent =
+      'Actualisation…';
   }
 
   try{
-    const live = await fetchLive();
+    const live =
+      await fetchLive();
 
     all = live
-      .map(o => ({
+      .map(o=>({
         ...o,
         score:score(o)
       }))
       .sort(
-        (a,b) => b.score - a.score
+        (a,b)=>b.score-a.score
       );
 
   }catch(e){
 
-    dataStatus = 'fallback';
+    dataStatus =
+      'fallback';
 
     all = DEMO
-      .map(o => ({
+      .map(o=>({
         ...o,
         score:score(o)
       }))
       .sort(
-        (a,b) => b.score - a.score
+        (a,b)=>b.score-a.score
       );
 
     console.warn(
@@ -498,10 +486,14 @@ async function refresh(){
   );
 
   const status =
-    document.getElementById('statusPill');
+    document.getElementById(
+      'statusPill'
+    );
 
   const notice =
-    document.getElementById('dataNotice');
+    document.getElementById(
+      'dataNotice'
+    );
 
   if(status){
     status.textContent =
@@ -537,55 +529,75 @@ async function refresh(){
         : '#93370d';
   }
 
-  document.getElementById('m1').textContent =
-    all.length;
+  document.getElementById(
+    'm1'
+  ).textContent = all.length;
 
-  document.getElementById('m2').textContent =
+  document.getElementById(
+    'm2'
+  ).textContent =
     all.length
       ? Math.round(
           all.reduce(
-            (a,b) => a + b.score,
+            (a,b)=>a+b.score,
             0
           ) / all.length
         )
       : 0;
 
-  document.getElementById('m3').textContent =
-    all.filter(
-      o =>
-        o.deadline &&
-        (new Date(o.deadline) - new Date()) /
-          86400000 < 7
-    ).length;
+  document.getElementById(
+    'm3'
+  ).textContent =
+    all.filter(o=>{
+      if(!o.deadline) return false;
 
-  document.getElementById('m4').textContent =
+      const d =
+        new Date(o.deadline);
+
+      if(Number.isNaN(d.getTime())){
+        return false;
+      }
+
+      return (
+        (d-new Date()) /
+        86400000
+      ) < 7;
+    }).length;
+
+  document.getElementById(
+    'm4'
+  ).textContent =
     saved.length;
 
   if(btn){
-    btn.textContent = 'Actualiser';
+    btn.textContent =
+      'Actualiser';
   }
 }
 
 function filter(){
   const q =
     (
-      document.getElementById('search')?.value ||
-      ''
+      document.getElementById(
+        'search'
+      )?.value || ''
     ).toLowerCase();
 
   const ms =
     +(
-      document.getElementById('minScore')?.value ||
-      0
+      document.getElementById(
+        'minScore'
+      )?.value || 0
     );
 
   const r =
-    document.getElementById('region')?.value ||
-    '';
+    document.getElementById(
+      'region'
+    )?.value || '';
 
   render(
     'oppList',
-    all.filter(o =>
+    all.filter(o=>
       (
         !q ||
         (
@@ -606,14 +618,14 @@ function filter(){
 
 function detail(id){
   const o =
-    all.find(x => x.id === id);
+    all.find(x=>x.id===id);
 
   if(!o) return;
 
   document
     .querySelectorAll('.page')
     .forEach(
-      p => p.classList.add('hidden')
+      p=>p.classList.add('hidden')
     );
 
   document
@@ -629,19 +641,26 @@ function detail(id){
         ${o.source}
       </div>
 
-      <h1>${o.title}</h1>
+      <h1>
+        ${o.title}
+      </h1>
 
       <div class="scorebig">
         ${o.score}/100
       </div>
 
       <p>
-        <b>Acheteur :</b> ${o.buyer}<br>
-        <b>Zone :</b> ${o.region}<br>
-        <b>Montant :</b> ${formatEUR(o.amount)}<br>
+        <b>Acheteur :</b>
+        ${o.buyer}<br>
+
+        <b>Zone :</b>
+        ${o.region}<br>
+
+        <b>Montant :</b>
+        ${formatEUR(o.amount)}<br>
+
         <b>Date limite :</b>
-        ${new Date(o.deadline)
-          .toLocaleDateString('fr-FR')}
+        ${formatDate(o.deadline)}
       </p>
 
       <hr>
@@ -652,23 +671,28 @@ function detail(id){
 
       <p>
         Correspondance calculée à partir de
-        votre activité, vos mots-clés, votre
-        région, votre fourchette de montant
-        et la deadline.
+        votre activité, vos mots-clés,
+        votre région, votre fourchette
+        de montant et la deadline.
       </p>
 
-      <h3>Checklist</h3>
+      <h3>
+        Checklist
+      </h3>
 
       <ul>
         <li>
           Vérifier les pièces administratives demandées
         </li>
+
         <li>
           Vérifier les critères de capacité et certifications
         </li>
+
         <li>
           Lire le dossier de consultation complet
         </li>
+
         <li>
           Confirmer la date limite et les modalités de dépôt
         </li>
@@ -691,7 +715,7 @@ function detail(id){
       </button>
 
       ${
-        o.url !== '#'
+        o.url
           ? `<a href="${o.url}" target="_blank">Source officielle</a>`
           : ''
       }
@@ -703,7 +727,7 @@ function detail(id){
 function toggleSave(id){
   saved =
     saved.includes(id)
-      ? saved.filter(x => x !== id)
+      ? saved.filter(x=>x!==id)
       : [...saved,id];
 
   localStorage.setItem(
@@ -716,7 +740,7 @@ function toggleSave(id){
   render(
     'savedList',
     all.filter(
-      o => saved.includes(o.id)
+      o=>saved.includes(o.id)
     )
   );
 
@@ -734,7 +758,7 @@ function go(page){
   document
     .querySelectorAll('.page')
     .forEach(
-      p => p.classList.add('hidden')
+      p=>p.classList.add('hidden')
     );
 
   document
@@ -744,18 +768,17 @@ function go(page){
   document
     .querySelectorAll('nav button')
     .forEach(
-      b =>
-        b.classList.toggle(
-          'active',
-          b.dataset.page === page
-        )
+      b=>b.classList.toggle(
+        'active',
+        b.dataset.page===page
+      )
     );
 
-  if(page === 'saved'){
+  if(page==='saved'){
     render(
       'savedList',
       all.filter(
-        o => saved.includes(o.id)
+        o=>saved.includes(o.id)
       )
     );
   }
@@ -764,57 +787,49 @@ function go(page){
 document
   .querySelectorAll('nav button')
   .forEach(
-    b =>
-      b.onclick = () =>
-        go(b.dataset.page)
+    b=>b.onclick=()=>go(b.dataset.page)
   );
 
 document.getElementById(
   'search'
-).oninput = filter;
+).oninput=filter;
 
 document.getElementById(
   'minScore'
-).onchange = filter;
+).onchange=filter;
 
 document.getElementById(
   'region'
-).onchange = filter;
+).onchange=filter;
 
 document.getElementById(
   'dashSearch'
-).oninput = e =>
+).oninput=e=>
   render(
     'dashList',
-    all
-      .filter(o =>
-        (
-          o.title +
-          ' ' +
-          o.buyer
-        )
-          .toLowerCase()
-          .includes(
-            e.target.value.toLowerCase()
-          )
+    all.filter(o=>
+      (
+        o.title+' '+o.buyer
       )
-      .slice(0,8)
+        .toLowerCase()
+        .includes(
+          e.target.value.toLowerCase()
+        )
+    ).slice(0,8)
   );
 
 document.getElementById(
   'refresh'
-).onclick = refresh;
+).onclick=refresh;
 
 document.getElementById(
   'back'
-).onclick = () =>
-  go('opportunities');
+).onclick=()=>go('opportunities');
 
 document.getElementById(
   'saveProfile'
-).onclick = () => {
-
-  profile = {
+).onclick=()=>{
+  profile={
     activity:activity.value,
     keywords:keywords.value,
     region:profileRegion.value,
@@ -835,5 +850,5 @@ document.getElementById(
 
 refresh();
 
-window.detail = detail;
-window.toggleSave = toggleSave;
+window.detail=detail;
+window.toggleSave=toggleSave;
