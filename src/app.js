@@ -14,7 +14,8 @@ const DEMO=[
 ].map((x,i)=>({id:'demo-'+i,title:x[0],buyer:x[1],region:x[2],amount:x[3],deadline:x[4],tags:x[5],source:'DEMO',url:'#',score:0}));
 let profile=JSON.parse(localStorage.getItem('or-profile')||'null')||{activity:'services aux entreprises, nettoyage, maintenance',keywords:'nettoyage, entretien, maintenance, services',region:'Auvergne-Rhône-Alpes',minAmount:10000,maxAmount:500000};
 let saved=JSON.parse(localStorage.getItem('or-saved')||'[]'); let all=[];
-const WORKER_URL=localStorage.getItem('or-worker-url')||'http://localhost:8787';
+const API_URL='/api/boamp';
+let dataStatus='unknown';
 function firstNumber(value){
   if(value==null) return null;
   if(typeof value==='number' && Number.isFinite(value)) return value;
@@ -51,13 +52,13 @@ function normalizeRecord(r){
   const codes=Array.isArray(r.descripteur_code)?r.descripteur_code.join(', '):(r.descripteur_code||'');
   const labels=Array.isArray(r.descripteur_libelle)?r.descripteur_libelle.join(', '):(r.descripteur_libelle||'');
   const deps=Array.isArray(r.code_departement)?r.code_departement.join(', '):(r.code_departement||'');
-  return {id:r.idweb||r.id||crypto.randomUUID(),title:r.objet||'Objet non communiqué',buyer:r.nomacheteur||'Acheteur non communiqué',region:deps||'France',department:deps,amount:extractAmount(r),deadline:r.datelimitereponse||null,published:r.dateparution||null,tags:labels||codes||r.type_marche_facette||r.type_marche||'',source:'BOAMP',url:r.url_avis||'',score:0,cpv:codes,raw:r};
+  return {id:r.idweb||r.id||crypto.randomUUID(),title:r.objet||'Objet non communiqué',buyer:r.nomacheteur||'Acheteur non communiqué',region:(DEPT_REGIONS[String(deps).trim()]||'France'),department:deps,amount:extractAmount(r),deadline:r.datelimitereponse||null,published:r.dateparution||null,tags:labels||codes||r.type_marche_facette||r.type_marche||'',source:'BOAMP',url:r.url_avis||'',score:0,cpv:codes,raw:r};
 }
 async function fetchLive(){
   const q=[profile.activity,profile.keywords].filter(Boolean).join(' ');
-  const url=new URL(WORKER_URL+'/api/boamp'); if(q) url.searchParams.set('q',q); url.searchParams.set('limit','100');
+  const url=new URL(API_URL,window.location.origin); if(q) url.searchParams.set('q',q); url.searchParams.set('limit','100');
   const r=await fetch(url,{headers:{accept:'application/json'}}); if(!r.ok) throw new Error('BOAMP '+r.status);
-  const data=await r.json(); return (data.results||[]).map(normalizeRecord).filter(o=>o.deadline);
+  const data=await r.json(); if(data.error) throw new Error(data.error); dataStatus='live'; return (data.results||[]).map(normalizeRecord).filter(o=>o.deadline);
 }
 
 const DEPT_REGIONS={
@@ -90,9 +91,9 @@ function card(o){return `<div class="opp"><div class="score">${o.score}</div><di
 function render(listId,data){document.getElementById(listId).innerHTML=data.length?data.map(card).join(''):'<div class="empty">Aucune opportunité ne correspond à vos critères.</div>'}
 async function refresh(){
   const btn=document.getElementById('refresh'); if(btn) btn.textContent='Actualisation…';
-  try{ const live=await fetchLive(); all=(live.length?live:DEMO).map(o=>({...o,score:score(o)})).sort((a,b)=>b.score-a.score); }
-  catch(e){ all=DEMO.map(o=>({...o,score:score(o)})).sort((a,b)=>b.score-a.score); }
-  filter();render('dashList',all.slice(0,6));document.getElementById('m1').textContent=all.length;document.getElementById('m2').textContent=all.length?Math.round(all.reduce((a,b)=>a+b.score,0)/all.length):0;document.getElementById('m3').textContent=all.filter(o=>o.deadline&&(new Date(o.deadline)-new Date())/86400000<7).length;document.getElementById('m4').textContent=saved.length;if(btn) btn.textContent='Actualiser';
+  try{ const live=await fetchLive(); all=live.map(o=>({...o,score:score(o)})).sort((a,b)=>b.score-a.score); }
+  catch(e){ dataStatus='fallback'; all=DEMO.map(o=>({...o,score:score(o)})).sort((a,b)=>b.score-a.score); console.warn('BOAMP indisponible:',e); }
+  filter();render('dashList',all.slice(0,6));const status=document.getElementById('statusPill');const notice=document.getElementById('dataNotice');if(status){status.textContent=dataStatus==='live'?'BOAMP LIVE':'MODE SECOURS';status.style.background=dataStatus==='live'?'#ecfdf3':'#fffaeb';status.style.color=dataStatus==='live'?'#067647':'#93370d';}if(notice){notice.textContent=dataStatus==='live'?'Données réelles BOAMP · API publique gratuite · actualisées automatiquement.':'Le service BOAMP est momentanément indisponible. Affichage des données de secours uniquement.';notice.style.background=dataStatus==='live'?'#ecfdf3':'#fffaeb';notice.style.color=dataStatus==='live'?'#067647':'#93370d';}document.getElementById('m1').textContent=all.length;document.getElementById('m2').textContent=all.length?Math.round(all.reduce((a,b)=>a+b.score,0)/all.length):0;document.getElementById('m3').textContent=all.filter(o=>o.deadline&&(new Date(o.deadline)-new Date())/86400000<7).length;document.getElementById('m4').textContent=saved.length;if(btn) btn.textContent='Actualiser';
 }
 function filter(){const q=(document.getElementById('search')?.value||'').toLowerCase(),ms=+(document.getElementById('minScore')?.value||0),r=document.getElementById('region')?.value||'';render('oppList',all.filter(o=>(!q||(o.title+' '+o.buyer+' '+o.tags).toLowerCase().includes(q))&&o.score>=ms&&(!r||o.region===r)))}
 function detail(id){const o=all.find(x=>x.id===id);if(!o)return;document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));document.getElementById('detail').classList.remove('hidden');document.getElementById('detailContent').innerHTML=`<div class="card"><div class="muted">${o.source}</div><h1>${o.title}</h1><div class="scorebig">${o.score}/100</div><p><b>Acheteur :</b> ${o.buyer}<br><b>Zone :</b> ${o.region}<br><b>Montant :</b> ${formatEUR(o.amount)}<br><b>Date limite :</b> ${new Date(o.deadline).toLocaleDateString('fr-FR')}</p><hr><h3>Pourquoi ce marché correspond</h3><p>Correspondance calculée à partir de votre activité, vos mots-clés, votre région, votre fourchette de montant et la deadline. Le score est transparent et peut être recalculé après modification du radar.</p><h3>Checklist</h3><ul><li>Vérifier les pièces administratives demandées</li><li>Vérifier les critères de capacité et certifications</li><li>Lire le dossier de consultation complet</li><li>Confirmer la date limite et les modalités de dépôt</li></ul><p class="muted">Cette analyse est une aide au tri et ne constitue pas un conseil juridique.</p><button class="toolbar button" onclick="toggleSave('${o.id}')">${saved.includes(o.id)?'Retirer des sauvegardées':'Sauvegarder'}</button> ${o.url!=='#'?`<a href="${o.url}" target="_blank">Source officielle</a>`:''}</div>`}
